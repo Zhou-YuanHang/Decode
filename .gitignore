@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# 解密工作目录
+Decode/
+
+# 解密生成的文件（带 _decode 后缀）
+*_decode.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 临时文件
+*.tmp
+*.bak
+*.log
+
+# 工作记忆（仅本地使用）
+.workbuddy/
+
+# 测试/示例文件
+SSS/
+Reference/
