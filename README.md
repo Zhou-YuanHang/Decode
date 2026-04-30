@@ -1,11 +1,11 @@
-# 文件解密工具 v1.6
+# 文件解密工具 v1.7
 
 一款通用的文件解密工具，支持拖放操作，可批量处理多种格式文件。
 
 ## 功能特性
 
 - **拖放支持**：直接拖入文件或文件夹进行解密
-- **多格式支持**：目前支持 .slx、.xlsx、.docx、.m 格式
+- **多格式支持**：目前支持 .slx、.xlsx、.docx、.m、.sldd 格式
 - **类型筛选**：通过复选框选择要解密的文件类型
 - **递归扫描**：可选是否包含子文件夹
 - **批量处理**：一键解密所有符合条件的文件
@@ -36,7 +36,7 @@ python build_exe.py
 
 ### 选择选项
 
-- **文件类型**：勾选要解密的文件扩展名（全部、.slx、.xlsx、.docx、.m）
+- **文件类型**：勾选要解密的文件扩展名（全部、.slx、.xlsx、.docx、.m、.sldd）
 - **包含子文件夹**：勾选则递归扫描所有子目录
 
 ### 执行解密
@@ -63,6 +63,12 @@ python build_exe.py
 2. **字节流复制**：直接复制字节流到新文件，不做文本解码
 3. **保持加密**：解密后的文件仍保持加密状态，可使用 MATLAB 或 VSCode 打开
 
+### Simulink 数据字典（.sldd）
+
+1. **读取字节流**：使用 PowerShell `ReadAllBytes` 读取原始字节流
+2. **字节流复制**：直接复制字节流到新文件，不做解压/解码
+3. **保持加密**：解密后的文件仍保持加密状态，可在无解密软件的电脑上用 MATLAB 打开
+
 解密后的文件与原文件位于同一目录。
 
 **技术亮点**：
@@ -85,6 +91,7 @@ YS_Decode/
 ├── slx_decoder.py       # SLX 解密器
 ├── xlsx_decoder.py      # XLSX 解密器
 ├── docx_decoder.py      # DOCX 解密器
+├── sldd_decoder.py      # SLDD 解密器（Simulink 数据字典）
 ├── m_decoder.py         # MATLAB .m 解密器
 ├── decoder_gui.py       # GUI 主程序
 ├── build_exe.py         # PyInstaller 打包脚本
@@ -106,10 +113,14 @@ pip install -r requirements.txt
 
 ## 版本信息
 
-- **当前版本**：v1.6
+- **当前版本**：v1.7
 - **发布日期**：2026-04-30
 
 ## 更新记录
+
+### v1.7
+- 新增 Simulink 数据字典（.sldd）格式支持
+- 使用纯字节流复制方法，保持文件加密状态但可被 MATLAB 打开
 
 ### v1.6
 - 修复打包后运行时报错"Unable to load tkdnd library"的问题

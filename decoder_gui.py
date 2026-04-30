@@ -30,6 +30,7 @@ class DecoderGUI:
             '.xlsx': ('xlsx_decoder', 'decrypt_xlsx'),
             '.docx': ('docx_decoder', 'decrypt_docx'),
             '.m': ('m_decoder', 'decrypt_m'),
+            '.sldd': ('sldd_decoder', 'decrypt_sldd'),
         }
 
         self._build_ui()

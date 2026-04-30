@@ -46,6 +46,7 @@ def main():
         "--hidden-import", "xlsx_decoder",
         "--hidden-import", "docx_decoder",
         "--hidden-import", "m_decoder",
+        "--hidden-import", "sldd_decoder",
         "--clean",                # 清理临时文件
         "decoder_gui.py"
     ]
