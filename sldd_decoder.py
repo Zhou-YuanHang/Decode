@@ -1,184 +1,154 @@
-#!/usr/bin/env python3
 """
-SLDD Decoder - Simulink Data Dictionary 解密器
-解密方法：使用 PowerShell 读取加密文件字节流，然后复制字节流到新文件
-参考：m_decoder.py
+Simulink Data Dictionary (.sldd) 解密器
+原理：SLDD 本质是 ZIP，解密过程 = 读取字节 → 解压 → 重新打包
+使用 PowerShell ReadAllBytes 绕过加密读取，io.BytesIO 内存处理
 """
 
 import os
-import sys
+import shutil
+import zipfile
+import io
 import subprocess
 import base64
-from pathlib import Path
+
+
+# 隐藏 PowerShell 窗口
+STARTUPINFO = subprocess.STARTUPINFO()
+STARTUPINFO.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+STARTUPINFO.wShowWindow = subprocess.SW_HIDE
 
 
 def _read_file_with_powershell(file_path: str) -> bytes:
-    """
-    使用 PowerShell 的 ReadAllBytes 方法读取文件字节流
-    这个方法可以绕过文件加密导致的权限/占用问题
-    
-    Args:
-        file_path: 文件路径
-        
-    Returns:
-        文件的原始字节流
-    """
-    # PowerShell 脚本：读取文件字节并转换为 base64
-    ps_script = f'''
-    $bytes = [System.IO.File]::ReadAllBytes("{file_path}")
-    [System.Convert]::ToBase64String($bytes)
-    '''
-    
-    try:
-        result = subprocess.run(
-            ['powershell', '-Command', ps_script],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        
-        if result.returncode != 0:
-            raise Exception(f"PowerShell 执行失败: {result.stderr}")
-        
-        # 将 base64 转回字节流
-        file_bytes = base64.b64decode(result.stdout.strip())
-        return file_bytes
-        
-    except Exception as e:
-        print(f"❌ 无法读取文件 {file_path}: {e}")
-        return None
+    """使用 PowerShell ReadAllBytes 读取文件（绕过加密）"""
+    cmd = f'''
+$bytes = [System.IO.File]::ReadAllBytes("{file_path}")
+[System.Convert]::ToBase64String($bytes)
+'''
+    result = subprocess.run(
+        ['powershell', '-Command', cmd],
+        capture_output=True,
+        encoding='utf-8',
+        startupinfo=STARTUPINFO
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr or "PowerShell 读取失败")
+    return base64.b64decode(result.stdout.strip())
 
 
-def _read_file_bytes(file_path: str) -> bytes:
-    """
-    读取文件字节流（优先使用 Python，失败则使用 PowerShell）
-    
-    Args:
-        file_path: 文件路径
-        
-    Returns:
-        文件的原始字节流
-    """
-    # 方法1：尝试使用 Python 直接读取
-    try:
-        with open(file_path, 'rb') as f:
-            return f.read()
-    except Exception as e:
-        print(f"⚠️ Python 读取失败，尝试 PowerShell: {e}")
-    
-    # 方法2：使用 PowerShell 读取（绕过加密）
-    return _read_file_with_powershell(file_path)
+class SLDDDecoder:
+    """Simulink Data Dictionary 解密器"""
+
+    SUPPORTED_EXTENSIONS = ['.sldd']
+    WORK_DIR = "Decode"
+
+    @classmethod
+    def can_handle(cls, file_path: str) -> bool:
+        ext = os.path.splitext(file_path)[1].lower()
+        return ext in cls.SUPPORTED_EXTENSIONS
+
+    def decrypt(self, input_path: str, output_path: str = None) -> str:
+        """
+        解密 SLDD 文件
+
+        流程：
+        1. 尝试直接读取，失败则用 PowerShell 读取
+        2. 解压到 Decode/<文件名>/ 目录
+        3. 重新打包为 xxx_decode.sldd（与原文件同级）
+        """
+        if output_path is None:
+            output_path = self._generate_output_path(input_path)
+        output_path = self._ensure_unique_path(output_path)
+
+        work_dir = self._prepare_work_dir(input_path)
+
+        try:
+            # Step 1: 读取文件字节
+            try:
+                # 先尝试直接读取（未加密文件）
+                with open(input_path, 'rb') as f:
+                    zip_bytes = f.read()
+                # 验证是否是有效 ZIP
+                zipfile.ZipFile(io.BytesIO(zip_bytes), 'r')
+            except (zipfile.BadZipFile, OSError):
+                # 文件可能是加密的，用 PowerShell 读取
+                zip_bytes = _read_file_with_powershell(input_path)
+
+            # Step 2: 解压到工作目录
+            with zipfile.ZipFile(io.BytesIO(zip_bytes), 'r') as zf:
+                zf.extractall(work_dir)
+
+            # Step 3: 处理内部内容（预留接口）
+            self._process_content(work_dir)
+
+            # Step 4: 重新打包到输出路径
+            with zipfile.ZipFile(output_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+                for root, dirs, files in os.walk(work_dir):
+                    for file in files:
+                        abs_path = os.path.join(root, file)
+                        arc_name = os.path.relpath(abs_path, work_dir).replace("\\", "/")
+                        zf.write(abs_path, arc_name)
+
+            return output_path
+
+        except Exception as e:
+            raise e
+
+    def _process_content(self, extracted_dir: str):
+        """处理解压后的内容，预留接口"""
+        pass
+
+    def _get_work_dir(self, input_path: str) -> str:
+        input_dir = os.path.dirname(os.path.abspath(input_path))
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+        return os.path.join(input_dir, self.WORK_DIR, base_name)
+
+    def _prepare_work_dir(self, input_path: str) -> str:
+        work_dir = self._get_work_dir(input_path)
+        if os.path.exists(work_dir):
+            shutil.rmtree(work_dir)
+        os.makedirs(work_dir, exist_ok=True)
+        return work_dir
+
+    def _generate_output_path(self, input_path: str, suffix: str = "_decode") -> str:
+        dir_name = os.path.dirname(input_path)
+        base, ext = os.path.splitext(os.path.basename(input_path))
+        if base.endswith(suffix):
+            return input_path
+        return os.path.join(dir_name, f"{base}{suffix}{ext}")
+
+    def _ensure_unique_path(self, path: str) -> str:
+        if not os.path.exists(path):
+            return path
+        base, ext = os.path.splitext(path)
+        counter = 1
+        while os.path.exists(path):
+            path = f"{base}_{counter}{ext}"
+            counter += 1
+        return path
+
+
+# 全局单例
+sldd_decoder = SLDDDecoder()
 
 
 def decrypt_sldd(input_path: str, output_path: str = None) -> str:
     """
-    解密 SLDD 文件（Simulink Data Dictionary）
-    
-    解密原理：
-    1. 使用 PowerShell ReadAllBytes 读取加密的 .sldd 文件
-    2. 将字节流直接复制到新文件（不做任何解码/解压）
-    3. 解密后的文件仍保持加密状态，但可以被无解密软件的电脑上的 MATLAB 打开
-    
+    解密 SLDD 文件的便捷函数
+
     Args:
         input_path: 输入的 .sldd 文件路径
-        output_path: 输出的解密文件路径（可选，默认为原文件名加 _decode）
-        
-    Returns:
-        解密后的文件路径，如果失败则返回 None
-    """
-    # 检查输入文件
-    if not os.path.exists(input_path):
-        print(f"❌ 文件不存在: {input_path}")
-        return None
-    
-    # 检查文件扩展名
-    if not input_path.lower().endswith('.sldd'):
-        print(f"❌ 文件扩展名不是 .sldd: {input_path}")
-        return None
-    
-    # 生成输出文件路径
-    if output_path is None:
-        output_path = input_path.replace('.sldd', '_decode.sldd')
-    
-    print(f"🔓 开始解密 SLDD 文件...")
-    print(f"   输入: {input_path}")
-    print(f"   输出: {output_path}")
-    
-    # 读取文件字节流
-    file_bytes = _read_file_bytes(input_path)
-    
-    if file_bytes is None:
-        print(f"❌ 无法读取文件: {input_path}")
-        return None
-    
-    print(f"   文件大小: {len(file_bytes)} 字节")
-    
-    # 写入解密后的文件（纯字节流复制）
-    try:
-        with open(output_path, 'wb') as f:
-            f.write(file_bytes)
-        
-        print(f"✅ 解密完成: {output_path}")
-        print(f"   提示: 解密后的文件仍保持加密状态")
-        print(f"   可以使用 MATLAB 打开（无需解密软件）")
-        
-        return output_path
-        
-    except Exception as e:
-        print(f"❌ 写入文件失败: {e}")
-        return None
+        output_path: 输出路径，默认为 input_decode.sldd
 
-
-def batch_decrypt_sldd(file_list: list) -> dict:
-    """
-    批量解密 SLDD 文件
-    
-    Args:
-        file_list: 文件路径列表
-        
     Returns:
-        结果字典：{文件路径: 成功/失败}
+        输出文件路径
     """
-    results = {}
-    
-    print(f"\n{'='*60}")
-    print(f"批量解密 SLDD 文件")
-    print(f"共 {len(file_list)} 个文件")
-    print(f"{'='*60}\n")
-    
-    success_count = 0
-    
-    for i, file_path in enumerate(file_list, 1):
-        print(f"\n[{i}/{len(file_list)}] 处理: {file_path}")
-        
-        result = decrypt_sldd(file_path)
-        
-        if result:
-            results[file_path] = "成功"
-            success_count += 1
-        else:
-            results[file_path] = "失败"
-    
-    print(f"\n{'='*60}")
-    print(f"批量解密完成")
-    print(f"成功: {success_count}/{len(file_list)}")
-    print(f"{'='*60}\n")
-    
-    return results
+    return sldd_decoder.decrypt(input_path, output_path)
 
 
 if __name__ == "__main__":
-    # 测试代码
-    if len(sys.argv) > 1:
-        input_file = sys.argv[1]
-    else:
-        # 默认使用测试文件
-        input_file = "PublicParameters.sldd"
-    
-    if not os.path.exists(input_file):
-        print(f"❌ 找不到测试文件: {input_file}")
-        print(f"\n使用方法:")
-        print(f"  python sldd_decoder.py [sldd文件路径]")
+    import sys
+    if len(sys.argv) < 2:
+        print("用法: python sldd_decoder.py <file.sldd>")
         sys.exit(1)
-    
-    decrypt_sldd(input_file)
+    result = decrypt_sldd(sys.argv[1])
+    print(f"解密完成: {result}")

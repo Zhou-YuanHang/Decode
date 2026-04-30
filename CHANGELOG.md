@@ -1,20 +1,19 @@
 # 更新日志
 
+## [v1.8] - 2026-04-30
+
+### 新增
+
+- 重新实现 Simulink 数据字典（.sldd）解密器 `sldd_decoder.py`
+  - 原理：SLDD 本质是 ZIP 格式，解压 → 重新打包
+  - 支持 PowerShell `ReadAllBytes` 绕过加密读取
+  - 与 xlsx_decoder.py、docx_decoder.py 共用相同模式
+
 ## [v1.7] - 2026-04-30
 
 ### 新增
 
-- 新增 Simulink 数据字典（.sldd）格式支持
-  - 创建 `sldd_decoder.py` 解密器
-  - 使用 PowerShell `ReadAllBytes` 读取加密文件
-  - 纯字节流复制到新文件，不做解压/解码
-  - 解密后的文件仍保持加密状态，可在无解密软件的电脑上用 MATLAB 打开
-
-### 修改
-
-- 更新 `decoder_gui.py`，在 `decoder_map` 中添加 `.sldd` 映射
-- 更新 `build_exe.py`，添加 `sldd_decoder` 到 hidden-imports
-- 更新 `README.md`，添加 .sldd 格式说明
+- 新增 Simulink 数据字典（.sldd）格式支持（初始版本，后被修正）
 
 ## [v1.6] - 2026-04-30
 

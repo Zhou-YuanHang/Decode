@@ -1,4 +1,4 @@
-# 文件解密工具 v1.7
+# 文件解密工具 v1.8
 
 一款通用的文件解密工具，支持拖放操作，可批量处理多种格式文件。
 
@@ -51,7 +51,7 @@ python build_exe.py
 
 本工具针对不同类型的文件采用不同的解密策略：
 
-### ZIP 格式文件（.slx、.xlsx、.docx）
+### ZIP 格式文件（.slx、.xlsx、.docx、.sldd）
 
 1. **读取文件**：优先使用 Python `open()` 读取，失败则调用 PowerShell `[System.IO.File]::ReadAllBytes()` 绕过加密
 2. **解压内容**：使用 `zipfile` + `io.BytesIO` 在内存中解压到工作目录 `Decode/<文件名>/`
@@ -113,10 +113,14 @@ pip install -r requirements.txt
 
 ## 版本信息
 
-- **当前版本**：v1.7
+- **当前版本**：v1.8
 - **发布日期**：2026-04-30
 
 ## 更新记录
+
+### v1.8
+- 重新实现 .sldd 解密器，改用 ZIP 解压/重新打包方式
+- 原理：SLDD 本质是 ZIP 格式，解压后重新打包即可解密
 
 ### v1.7
 - 新增 Simulink 数据字典（.sldd）格式支持
