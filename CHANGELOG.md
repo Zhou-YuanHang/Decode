@@ -4,6 +4,11 @@
 
 ### 新增
 
+- 新增 C/C++ 源码（.c/.h）解密器 `source_decoder.py`
+  - 使用 PowerShell `ReadAllBytes` 绕过加密读取
+  - 解密 .c 时自动解密同目录下所有的 .c 和 .h 文件
+  - 直接复制字节流，不做编码转换
+
 - 重新实现 Simulink 数据字典（.sldd）解密器 `sldd_decoder.py`
   - 原理：SLDD 本质是 ZIP 格式，解压 → 重新打包
   - 支持 PowerShell `ReadAllBytes` 绕过加密读取

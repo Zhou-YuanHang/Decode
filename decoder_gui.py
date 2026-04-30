@@ -31,6 +31,8 @@ class DecoderGUI:
             '.docx': ('docx_decoder', 'decrypt_docx'),
             '.m': ('m_decoder', 'decrypt_m'),
             '.sldd': ('sldd_decoder', 'decrypt_sldd'),
+            '.c': ('source_decoder', 'decrypt_c'),
+            '.h': ('source_decoder', 'decrypt_c'),
         }
 
         self._build_ui()
@@ -374,10 +376,13 @@ class DecoderGUI:
                 try:
                     decoder_module = __import__(decoder_name)
                     decrypt_func = getattr(decoder_module, func_name)
-                    decrypt_func(file_path)
+                    result = decrypt_func(file_path)
                     success += 1
-                    # 记录成功解密的源文件路径
-                    self.decrypted_files.append(file_path)
+                    # decrypt_func 可能返回单个路径或路径列表
+                    if isinstance(result, list):
+                        self.decrypted_files.extend(result)
+                    else:
+                        self.decrypted_files.append(result)
                 except Exception as e:
                     self.root.after(0, lambda e=str(e): self._log(f"  [错误] {e}"))
                     failed += 1

@@ -5,7 +5,7 @@
 ## 功能特性
 
 - **拖放支持**：直接拖入文件或文件夹进行解密
-- **多格式支持**：目前支持 .slx、.xlsx、.docx、.m、.sldd 格式
+- **多格式支持**：目前支持 .slx、.xlsx、.docx、.m、.sldd、.c、.h 格式
 - **类型筛选**：通过复选框选择要解密的文件类型
 - **递归扫描**：可选是否包含子文件夹
 - **批量处理**：一键解密所有符合条件的文件
@@ -36,7 +36,7 @@ python build_exe.py
 
 ### 选择选项
 
-- **文件类型**：勾选要解密的文件扩展名（全部、.slx、.xlsx、.docx、.m、.sldd）
+- **文件类型**：勾选要解密的文件扩展名（全部、.slx、.xlsx、.docx、.m、.sldd、.c、.h）
 - **包含子文件夹**：勾选则递归扫描所有子目录
 
 ### 执行解密
@@ -57,6 +57,14 @@ python build_exe.py
 2. **解压内容**：使用 `zipfile` + `io.BytesIO` 在内存中解压到工作目录 `Decode/<文件名>/`
 3. **重新打包**：将解压后的内容重新压缩为 `<原文件名>_decode.<扩展名>`
 
+### C/C++ 源码文件（.c、.h）
+
+1. **读取字节流**：使用 PowerShell `ReadAllBytes` 读取原始字节流
+2. **批量解密**：解密 .c 时自动解密同目录下所有的 .c 和 .h 文件
+3. **字节流复制**：直接复制字节流到新文件，不做编码转换
+
+解密后的文件与原文件位于同一目录。
+
 ### MATLAB .m 文件
 
 1. **读取字节流**：使用 PowerShell `ReadAllBytes` 读取原始字节流
@@ -65,9 +73,9 @@ python build_exe.py
 
 ### Simulink 数据字典（.sldd）
 
-1. **读取字节流**：使用 PowerShell `ReadAllBytes` 读取原始字节流
-2. **字节流复制**：直接复制字节流到新文件，不做解压/解码
-3. **保持加密**：解密后的文件仍保持加密状态，可在无解密软件的电脑上用 MATLAB 打开
+1. **读取文件**：使用 PowerShell `ReadAllBytes` 绕过加密读取
+2. **解压内容**：使用 `zipfile` + `io.BytesIO` 在内存中解压
+3. **重新打包**：重新压缩为 `<原文件名>_decode.sldd`
 
 解密后的文件与原文件位于同一目录。
 
@@ -92,6 +100,7 @@ YS_Decode/
 ├── xlsx_decoder.py      # XLSX 解密器
 ├── docx_decoder.py      # DOCX 解密器
 ├── sldd_decoder.py      # SLDD 解密器（Simulink 数据字典）
+├── source_decoder.py    # 源码（.c/.h）解密器
 ├── m_decoder.py         # MATLAB .m 解密器
 ├── decoder_gui.py       # GUI 主程序
 ├── build_exe.py         # PyInstaller 打包脚本
