@@ -244,6 +244,10 @@ class DecoderGUI:
                 # 递归扫描所有子文件夹
                 for root, dirs, files in os.walk(self.current_folder):
                     for file in files:
+                        # 跳过文件名本身含 _decode 的文件（已解密产物）
+                        base = os.path.splitext(file)[0]
+                        if base.endswith("_decode"):
+                            continue
                         ext = os.path.splitext(file)[1].lower()
                         if ext in self.decoder_map:
                             self.all_files_in_folder.append(os.path.join(root, file))
@@ -252,6 +256,10 @@ class DecoderGUI:
                 for file in os.listdir(self.current_folder):
                     file_path = os.path.join(self.current_folder, file)
                     if os.path.isfile(file_path):
+                        # 跳过文件名本身含 _decode 的文件（已解密产物）
+                        base = os.path.splitext(file)[0]
+                        if base.endswith("_decode"):
+                            continue
                         ext = os.path.splitext(file)[1].lower()
                         if ext in self.decoder_map:
                             self.all_files_in_folder.append(file_path)
