@@ -1,12 +1,41 @@
 """
 SLX 文件解密器
-原理：SLX 本质是 ZIP，解密过程 = 解压 → 处理内部内容 → 重新打包
+原理：SLX 本质是 ZIP，解密过程 = 读取字节 → 解压 → 重新打包
+使用 PowerShell ReadAllBytes 绕过加密读取，io.BytesIO 内存处理
 """
 
 import zipfile
 import os
 import shutil
+import io
+import subprocess
+import base64
 from abc import ABC, abstractmethod
+
+
+# 隐藏 PowerShell 窗口
+STARTUPINFO = subprocess.STARTUPINFO()
+STARTUPINFO.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+STARTUPINFO.wShowWindow = subprocess.SW_HIDE
+
+
+def _read_file_with_powershell(file_path: str) -> bytes:
+    """使用 PowerShell ReadAllBytes 读取文件（绕过加密）"""
+    # 将路径转换为正斜杠（避免 PowerShell 转义问题）
+    file_path_ps = file_path.replace('\\', '/')
+    cmd = f'''
+$bytes = [System.IO.File]::ReadAllBytes("{file_path_ps}")
+[System.Convert]::ToBase64String($bytes)
+'''
+    result = subprocess.run(
+        ['powershell', '-NoProfile', '-Command', cmd],
+        capture_output=True,
+        encoding='utf-8',
+        startupinfo=STARTUPINFO
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr or "PowerShell 读取失败")
+    return base64.b64decode(result.stdout.strip())
 
 
 class BaseDecoder(ABC):
@@ -70,11 +99,25 @@ class SLXDecoder(BaseDecoder):
         work_dir = self._prepare_work_dir(input_path)
 
         try:
-            with zipfile.ZipFile(input_path, 'r') as zf:
+            # Step 1: 读取文件字节
+            try:
+                # 先尝试直接读取（未加密文件）
+                with open(input_path, 'rb') as f:
+                    zip_bytes = f.read()
+                # 验证是否是有效 ZIP
+                zipfile.ZipFile(io.BytesIO(zip_bytes), 'r')
+            except (zipfile.BadZipFile, OSError):
+                # 文件可能是加密的，用 PowerShell 读取
+                zip_bytes = _read_file_with_powershell(input_path)
+
+            # Step 2: 解压到工作目录
+            with zipfile.ZipFile(io.BytesIO(zip_bytes), 'r') as zf:
                 zf.extractall(work_dir)
 
+            # Step 3: 处理内部内容（预留接口）
             self._process_content(work_dir)
 
+            # Step 4: 重新打包到输出路径
             with zipfile.ZipFile(output_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
                 for root, dirs, files in os.walk(work_dir):
                     for file in files:
