@@ -37,6 +37,7 @@ class DecoderGUI:
             '.sldd': ('sldd_decoder', 'decrypt_sldd'),
             '.c': ('source_decoder', 'decrypt_c'),
             '.h': ('source_decoder', 'decrypt_c'),
+            '.py': ('py_decoder', 'decrypt_py'),
         }
 
         self._build_ui()
