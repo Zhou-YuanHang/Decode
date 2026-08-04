@@ -1,5 +1,5 @@
 """
-源码文件解密器 (.c, .h, .py)
+文本/源码文件解密器 (.c, .h, .py, .txt)
 原理：使用 PowerShell ReadAllBytes 读取加密文件
 输出：
   1. Decode/<文件名>/ 子文件夹 - 存放解密后的文件
@@ -26,7 +26,7 @@ def _ensure_unique_path(output_path: str) -> str:
 
 def decrypt_source(input_path: str, output_path: str = None) -> list:
     """
-    解密源码文件 (.c / .h / .py)
+    解密文本/源码文件 (.c / .h / .py / .txt)
 
     输出：
       1. Decode/<文件名>/ 子文件夹 - 存放解密后的文件
@@ -68,6 +68,7 @@ def decrypt_source(input_path: str, output_path: str = None) -> list:
 # 别名：保持向后兼容
 decrypt_c = decrypt_source
 decrypt_py = decrypt_source
+decrypt_txt = decrypt_source
 
 
 if __name__ == "__main__":

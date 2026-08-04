@@ -38,6 +38,7 @@ class DecoderGUI:
             '.c': ('source_decoder', 'decrypt_c'),
             '.h': ('source_decoder', 'decrypt_c'),
             '.py': ('source_decoder', 'decrypt_py'),
+            '.txt': ('source_decoder', 'decrypt_txt'),
         }
 
         self._build_ui()
