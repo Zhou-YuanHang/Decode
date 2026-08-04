@@ -200,6 +200,14 @@ class DecoderGUI:
         )
         self.delete_decode_folder_btn.pack(side="left", padx=10)
 
+        self.clean_all_btn = ttk.Button(
+            btn_frame2,
+            text="🧹 一键清理",
+            command=self._do_clean_all,
+            state="disabled"
+        )
+        self.clean_all_btn.pack(side="left", padx=10)
+
         # 日志区域
         log_frame = ttk.LabelFrame(main, text="操作日志", padding="5")
         log_frame.grid(row=5, column=0, sticky="nsew", pady=5)
@@ -487,6 +495,7 @@ class DecoderGUI:
         # 解密后重新扫描 _decode 文件和 Decode 文件夹，启用对应按钮
         self._scan_decode_files_and_folders(self.recursive_var.get())
         self._update_scan_buttons()
+        self._update_clean_all_btn()
         messagebox.showinfo("解密完成", f"成功: {success} 个\n失败: {failed} 个")
 
     def _open_location(self):
@@ -503,6 +512,7 @@ class DecoderGUI:
             self.delete_decode_folder_btn.config(state="normal")
         else:
             self.delete_decode_folder_btn.config(state="disabled")
+        self._update_clean_all_btn()
 
     def _do_delete_all_decode_files(self):
         """删除当前扫描到的所有 _decode 后缀文件（无需先解密）"""
@@ -694,6 +704,118 @@ class DecoderGUI:
             messagebox.showinfo("重命名完成", f"成功重命名 {renamed} 个文件")
         else:
             messagebox.showwarning("重命名完成", f"成功: {renamed} 个\n失败: {failed} 个")
+
+    def _do_clean_all(self):
+        """一键清理：删除源文件 → 去除_decode后缀 → 删除_decode文件 → 删除Decode文件夹"""
+        # --- 汇总即将执行的操作 ---
+        actions = []
+
+        if self.source_files:
+            actions.append(f"删除 {len(self.source_files)} 个源文件")
+        rename_candidates = []
+        for f in self.decrypted_files:
+            base = os.path.splitext(f)[0]
+            if base.endswith("_decode"):
+                rename_candidates.append(f)
+        if rename_candidates:
+            actions.append(f"去除_decode后缀: {len(rename_candidates)} 个文件")
+        if self.decode_files:
+            actions.append(f"删除 {len(self.decode_files)} 个 _decode 文件")
+        if self.decode_folders:
+            actions.append(f"删除 {len(self.decode_folders)} 个 Decode 文件夹")
+
+        if not actions:
+            messagebox.showinfo("提示", "没有可清理的内容")
+            return
+
+        confirm_msg = "确定要执行以下操作吗？\n\n"
+        confirm_msg += "\n".join(f"  • {a}" for a in actions)
+        confirm_msg += "\n\n⚠️ 此操作不可恢复！"
+
+        if not messagebox.askyesno("确认一键清理", confirm_msg, icon="warning"):
+            return
+
+        # --- 执行四步 ---
+        stats = {"src": 0, "renamed": 0, "decode_files": 0, "folders": 0, "failed": 0}
+
+        # Step 1: 删除源文件
+        for fp in list(self.source_files):
+            try:
+                if os.path.exists(fp):
+                    os.remove(fp)
+                    stats["src"] += 1
+                    self._log(f"[已删除源文件] {os.path.basename(fp)}")
+            except Exception as e:
+                stats["failed"] += 1
+                self._log(f"[删除源文件失败] {os.path.basename(fp)}: {e}")
+        self.source_files = []
+
+        # Step 2: 去除_decode后缀
+        new_paths = []
+        for old_path in rename_candidates:
+            base, ext = os.path.splitext(old_path)
+            new_path = base[:-7] + ext  # 去掉末尾 "_decode"
+            try:
+                if os.path.exists(new_path):
+                    os.remove(new_path)
+                os.rename(old_path, new_path)
+                stats["renamed"] += 1
+                new_paths.append(new_path)
+                self._log(f"[已重命名] {os.path.basename(old_path)} → {os.path.basename(new_path)}")
+            except Exception as e:
+                stats["failed"] += 1
+                self._log(f"[重命名失败] {os.path.basename(old_path)}: {e}")
+        self.decrypted_files = new_paths
+
+        # Step 3: 删除剩余 _decode 文件（重新扫描，因为步骤2已改名的已不存在）
+        self._scan_decode_files_and_folders(self.recursive_var.get())
+        for fp in list(self.decode_files):
+            try:
+                if os.path.exists(fp):
+                    os.remove(fp)
+                    stats["decode_files"] += 1
+                    self._log(f"[已删除_decode] {os.path.basename(fp)}")
+            except Exception as e:
+                stats["failed"] += 1
+                self._log(f"[删除_decode失败] {os.path.basename(fp)}: {e}")
+        self.decode_files = []
+
+        # Step 4: 删除 Decode 文件夹
+        import shutil
+        for fp in list(self.decode_folders):
+            try:
+                if os.path.exists(fp):
+                    shutil.rmtree(fp)
+                    stats["folders"] += 1
+                    self._log(f"[已删除文件夹] {fp}")
+            except Exception as e:
+                stats["failed"] += 1
+                self._log(f"[删除文件夹失败] {fp}: {e}")
+        self.decode_folders = []
+
+        # --- 刷新状态 ---
+        self.delete_src_btn.config(state="disabled")
+        self.rename_btn.config(state="disabled")
+        self._update_scan_buttons()
+        self._update_file_list()
+        self._update_clean_all_btn()
+
+        # --- 结果 ---
+        parts = []
+        if stats["src"]:          parts.append(f"删除源文件: {stats['src']} 个")
+        if stats["renamed"]:      parts.append(f"去除_decode后缀: {stats['renamed']} 个")
+        if stats["decode_files"]: parts.append(f"删除_decode文件: {stats['decode_files']} 个")
+        if stats["folders"]:      parts.append(f"删除Decode文件夹: {stats['folders']} 个")
+        msg = "\n".join(parts)
+        if stats["failed"]:
+            msg += f"\n失败: {stats['failed']} 个"
+        messagebox.showinfo("一键清理完成", msg)
+
+    def _update_clean_all_btn(self):
+        """当源文件/decrypted_files/decode_files/decode_folders 任一不为空时启用一键清理"""
+        has_content = bool(self.source_files or self.decode_files or self.decode_folders
+                           or any(os.path.splitext(f)[0].endswith("_decode") for f in self.decrypted_files))
+        self.clean_all_btn.config(state="normal" if has_content else "disabled")
 
     def _log(self, msg):
         self.log_text.config(state="normal")
