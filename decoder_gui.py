@@ -14,7 +14,7 @@ class DecoderGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("文件解密工具")
-        self.root.geometry("700x620")
+        self.root.geometry("750x620")
         self.root.minsize(600, 480)
 
         self.current_path = None
