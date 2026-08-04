@@ -7,30 +7,9 @@ Python .py 文件解密器
 """
 
 import os
-import subprocess
 import shutil
-import base64
 
-
-# 隐藏 PowerShell 窗口
-STARTUPINFO = subprocess.STARTUPINFO()
-STARTUPINFO.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-STARTUPINFO.wShowWindow = subprocess.SW_HIDE
-
-
-def _read_file_with_powershell(file_path: str) -> bytes:
-    """使用 PowerShell 读取文件字节流（绕过 EFS 加密）"""
-    ps_path = file_path.replace('\\', '/')
-    cmd = f'[System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes("{ps_path}"))'
-    result = subprocess.run(
-        ['powershell', '-NoProfile', '-Command', cmd],
-        capture_output=True,
-        encoding='utf-8',
-        startupinfo=STARTUPINFO
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "PowerShell 读取失败")
-    return base64.b64decode(result.stdout.strip())
+from utils import read_file_with_powershell
 
 
 def _ensure_unique_path(output_path: str) -> str:
@@ -74,7 +53,7 @@ def decrypt_py(input_path: str, output_path: str = None) -> list:
     # PowerShell 读取解密
     entry_name = os.path.basename(input_path)
     dest_path = os.path.join(work_dir, entry_name)
-    file_bytes = _read_file_with_powershell(input_path)
+    file_bytes = read_file_with_powershell(input_path)
 
     with open(dest_path, 'wb') as fp:
         fp.write(file_bytes)

@@ -8,31 +8,8 @@ import os
 import shutil
 import zipfile
 import io
-import subprocess
-import base64
 
-
-# 隐藏 PowerShell 窗口
-STARTUPINFO = subprocess.STARTUPINFO()
-STARTUPINFO.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-STARTUPINFO.wShowWindow = subprocess.SW_HIDE
-
-
-def _read_file_with_powershell(file_path: str) -> bytes:
-    """使用 PowerShell ReadAllBytes 读取文件（绕过加密）"""
-    cmd = f'''
-$bytes = [System.IO.File]::ReadAllBytes("{file_path}")
-[System.Convert]::ToBase64String($bytes)
-'''
-    result = subprocess.run(
-        ['powershell', '-Command', cmd],
-        capture_output=True,
-        encoding='utf-8',
-        startupinfo=STARTUPINFO
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr or "PowerShell 读取失败")
-    return base64.b64decode(result.stdout.strip())
+from utils import read_file_with_powershell
 
 
 class SLDDDecoder:
@@ -71,7 +48,7 @@ class SLDDDecoder:
                 zipfile.ZipFile(io.BytesIO(zip_bytes), 'r')
             except (zipfile.BadZipFile, OSError):
                 # 文件可能是加密的，用 PowerShell 读取
-                zip_bytes = _read_file_with_powershell(input_path)
+                zip_bytes = read_file_with_powershell(input_path)
 
             # Step 2: 解压到工作目录
             with zipfile.ZipFile(io.BytesIO(zip_bytes), 'r') as zf:

@@ -49,6 +49,7 @@ def main():
         "--hidden-import", "py_decoder",
         "--hidden-import", "sldd_decoder",
         "--hidden-import", "source_decoder",
+        "--hidden-import", "utils",            # 公共工具模块
         "--clean",                # 清理临时文件
         "decoder_gui.py"
     ]
