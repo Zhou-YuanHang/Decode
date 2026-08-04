@@ -1,9 +1,9 @@
 """
-C/C++ 源码文件 (.c, .h) 解密器
+源码文件解密器 (.c, .h, .py)
 原理：使用 PowerShell ReadAllBytes 读取加密文件
 输出：
   1. Decode/<文件名>/ 子文件夹 - 存放解密后的文件
-  2. 同目录的 xxx_decode.c / xxx_decode.h - 入口文件的解密副本
+  2. 同目录的 xxx_decode.ext - 入口文件的解密副本
 """
 
 import os
@@ -24,17 +24,16 @@ def _ensure_unique_path(output_path: str) -> str:
     return output_path
 
 
-def decrypt_c(input_path: str, output_path: str = None) -> list:
+def decrypt_source(input_path: str, output_path: str = None) -> list:
     """
-    解密 C/C++ 源码文件 (.c 或 .h)
-    C 和 H 独立解密，互不影响
+    解密源码文件 (.c / .h / .py)
 
     输出：
       1. Decode/<文件名>/ 子文件夹 - 存放解密后的文件
-      2. 同目录的 xxx_decode.c（或 xxx_decode.h） - 入口文件的解密副本
+      2. 同目录的 xxx_decode.ext - 入口文件的解密副本
 
     Args:
-        input_path: 输入文件路径 (.c 或 .h)
+        input_path: 输入文件路径
 
     Returns:
         解密成功的文件路径列表
@@ -43,7 +42,6 @@ def decrypt_c(input_path: str, output_path: str = None) -> list:
     input_dir = os.path.dirname(os.path.abspath(input_path))
     base_name = os.path.splitext(os.path.basename(input_path))[0]
 
-    # 工作目录：Decode/<文件名>/
     work_dir = os.path.join(input_dir, "Decode", base_name)
     if os.path.exists(work_dir):
         shutil.rmtree(work_dir)
@@ -51,7 +49,6 @@ def decrypt_c(input_path: str, output_path: str = None) -> list:
 
     output_files = []
 
-    # C 和 H 独立解密，不再批量
     entry_name = os.path.basename(input_path)
     dest_path = os.path.join(work_dir, entry_name)
     file_bytes = read_file_with_powershell(input_path)
@@ -60,13 +57,17 @@ def decrypt_c(input_path: str, output_path: str = None) -> list:
         fp.write(file_bytes)
     output_files.append(dest_path)
 
-    # 同目录入口文件加 _decode 后缀
     entry_decode = os.path.join(input_dir, entry_name.replace(ext, f"_decode{ext}"))
     entry_decode = _ensure_unique_path(entry_decode)
     shutil.copyfile(dest_path, entry_decode)
     output_files.append(entry_decode)
 
     return output_files
+
+
+# 别名：保持向后兼容
+decrypt_c = decrypt_source
+decrypt_py = decrypt_source
 
 
 if __name__ == "__main__":
