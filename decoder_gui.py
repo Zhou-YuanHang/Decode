@@ -220,7 +220,7 @@ class DecoderGUI:
         self.log_text.grid(row=0, column=0, sticky="nsew")
 
         # 状态栏
-        self.status_var = tk.StringVar(value=f"v{__version__}")
+        self.status_var = tk.StringVar(value="就绪")
         status_bar = ttk.Label(main, textvariable=self.status_var, relief="sunken", anchor="w")
         status_bar.grid(row=6, column=0, sticky="ew", pady=(5, 0))
         main.rowconfigure(6, weight=0)

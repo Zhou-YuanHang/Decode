@@ -6,8 +6,6 @@
 import os
 import sys
 import subprocess
-from utils import __version__
-
 
 def main():
     # 检查 PyInstaller 是否安装
@@ -39,7 +37,7 @@ def main():
         sys.executable, "-m", "PyInstaller",
         "--onefile",              # 单文件模式
         "--windowed",             # 无控制台窗口
-        "--name", f"文件解密工具_v{__version__}",  # 输出文件名
+        "--name", "文件解密工具",  # 输出文件名
         "--icon", icon_path,      # 图标文件
         "--add-data", f"Pic.jpg;.",  # 打包图标文件到exe
         "--add-data", f"{tkdnd_path};tkinterdnd2/tkdnd",  # 打包 tkdnd 库文件
