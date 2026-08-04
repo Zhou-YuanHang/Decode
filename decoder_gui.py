@@ -8,12 +8,13 @@ from tkinter import ttk, messagebox, scrolledtext
 import os
 import sys
 import threading
+from utils import __version__
 
 
 class DecoderGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("文件解密工具")
+        self.root.title(f"文件解密工具 v{__version__}")
         self.root.geometry("750x620")
         self.root.minsize(600, 480)
 
@@ -219,7 +220,7 @@ class DecoderGUI:
         self.log_text.grid(row=0, column=0, sticky="nsew")
 
         # 状态栏
-        self.status_var = tk.StringVar(value="就绪")
+        self.status_var = tk.StringVar(value=f"v{__version__}")
         status_bar = ttk.Label(main, textvariable=self.status_var, relief="sunken", anchor="w")
         status_bar.grid(row=6, column=0, sticky="ew", pady=(5, 0))
         main.rowconfigure(6, weight=0)

@@ -3,6 +3,8 @@
 提供所有解码器共用的文件读取、ZIP 处理基类等功能
 """
 
+__version__ = "1.0.0"
+
 import os
 import shutil
 import subprocess
